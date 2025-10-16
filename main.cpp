@@ -74,3 +74,33 @@ public:
 
         cout << "Memoria liberada. Sistema cerrado." << endl;
     }
+
+    void modifyProduction() {
+        int productIndex, weekIndex;
+        float newQuantity;
+
+        cout << "\n--- Modificar Produccion ---" << endl;
+        cout << "Ingrese Producto (0-" << NUM_PRODUCTS - 1 << "): ";
+        cin >> productIndex;
+        cout << "Ingrese Semana (0-" << currentWeeks - 1 << "): ";
+        cin >> weekIndex;
+
+        if (cin.fail() || productIndex < 0 || productIndex >= NUM_PRODUCTS || 
+            weekIndex < 0 || weekIndex >= currentWeeks) {
+            cin.clear(); cin.ignore(10000, '\n');
+            cout << "Error: Producto o Semana invalida." << endl;
+            return;
+        }
+
+        cout << "Cantidad a producir: ";
+        cin >> newQuantity;
+        if (cin.fail() || newQuantity < 0) {
+            cin.clear(); cin.ignore(10000, '\n');
+            cout << "Error: Cantidad invalida." << endl;
+            return;
+        }
+
+        planningMatrix[productIndex][weekIndex] = newQuantity;
+        cout << "Produccion de " << PRODUCT_NAMES[productIndex] << " en Sem. " 
+             << weekIndex << " actualizada a " << newQuantity << " unidades." << endl;
+    }

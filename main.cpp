@@ -104,3 +104,175 @@ public:
         cout << "Produccion de " << PRODUCT_NAMES[productIndex] << " en Sem. " 
              << weekIndex << " actualizada a " << newQuantity << " unidades." << endl;
     }
+
+    void resizeMatrix() {
+        int newWeeks = currentWeeks + 1;
+        cout << "\nAgregando Semana " << currentWeeks << "..." << endl;
+
+        float** newMatrix = new float*[NUM_PRODUCTS];
+        for (int i = 0; i < NUM_PRODUCTS; ++i) {
+            newMatrix[i] = new float[newWeeks];
+        }
+
+        for (int i = 0; i < NUM_PRODUCTS; ++i) {
+            for (int j = 0; j < currentWeeks; ++j) {
+                newMatrix[i][j] = planningMatrix[i][j];
+            }
+            newMatrix[i][currentWeeks] = 0.0f;
+            
+            delete[] planningMatrix[i];
+        }
+        delete[] planningMatrix;
+
+        planningMatrix = newMatrix;
+        currentWeeks = newWeeks;
+
+        cout << "Matriz redimensionada a " << NUM_PRODUCTS << "x" << currentWeeks 
+             << ". Memoria gestionada con exito!" << endl;
+    }
+
+    float calculateMPConsumption(int weekIndex, float* consumptionVector) const {
+        float totalUnitsProduced = 0.0f;
+
+        for (int k = 0; k < NUM_MP_TYPES; ++k) {
+            consumptionVector[k] = 0.0f;
+        }
+
+        for (int k = 0; k < NUM_MP_TYPES; ++k) {
+            for (int i = 0; i < NUM_PRODUCTS; ++i) {
+                consumptionVector[k] += planningMatrix[i][weekIndex] * materialRequirements[i][k];
+            }
+        }
+
+        for (int i = 0; i < NUM_PRODUCTS; ++i) {
+            totalUnitsProduced += planningMatrix[i][weekIndex];
+        }
+
+        return totalUnitsProduced;
+    }
+
+    void calculateCOGS(int weekIndex) const {
+        float* consumptionVector = new float[NUM_MP_TYPES];
+        float* remainingMP = new float[NUM_MP_TYPES];
+
+        float totalUnitsProduced = calculateMPConsumption(weekIndex, consumptionVector);
+
+        float cogsValue = 0.0f;
+        for (int i = 0; i < NUM_PRODUCTS; ++i) {
+            cogsValue += planningMatrix[i][weekIndex] * unitCostsVector[i];
+        }
+
+        float finalInventoryValue = 0.0f;
+        for (int k = 0; k < NUM_MP_TYPES; ++k) {
+            remainingMP[k] = rawMaterialInventory[k] - consumptionVector[k];
+            if (remainingMP[k] < 0) {
+                remainingMP[k] = 0.0f;
+            }
+            
+            finalInventoryValue += remainingMP[k] * MP_ACQUISITION_COSTS[k];
+        }
+
+        cout << fixed << setprecision(2);
+        cout << "\n--- Reporte de Costos (Semana " << weekIndex << ") ---" << endl;
+        cout << "Produccion Total: " << totalUnitsProduced << " unidades." << endl;
+        cout << "Costo de Produccion (COGS): $" << cogsValue << endl;
+        
+        cout << "\nConsumo de Materia Prima:" << endl;
+        for (int k = 0; k < NUM_MP_TYPES; ++k) {
+            cout << "  - " << MP_NAMES[k] << ": " << consumptionVector[k] << " unidades." << endl;
+        }
+        
+        cout << "Valor del Inventario Final (M.P. restante): $" << finalInventoryValue << endl;
+        
+        delete[] consumptionVector;
+        delete[] remainingMP;
+    }
+    
+    void displayPlanningMatrix() const {
+        cout << "\n--- Plan de Produccion (Productos vs. Semanas) ---" << endl;
+        
+        cout << setw(20) << "Producto \\ Semana |";
+        for (int j = 0; j < currentWeeks; ++j) {
+            cout << setw(8) << "W" + to_string(j) + " |";
+        }
+        cout << endl;
+        cout << string(20 + 9 * currentWeeks, '-') << endl;
+
+        cout << fixed << setprecision(0);
+        for (int i = 0; i < NUM_PRODUCTS; ++i) {
+            cout << setw(20) << PRODUCT_NAMES[i] << " |";
+            for (int j = 0; j < currentWeeks; ++j) {
+                cout << setw(8) << planningMatrix[i][j] << " |";
+            }
+            cout << endl;
+        }
+        cout << endl;
+    }
+    
+    void runMenu() {
+        int choice;
+        do {
+            cout << "\n--- Menu Principal ---" << endl;
+            cout << "1. Ver Plan de Produccion" << endl;
+            cout << "2. Agregar Nueva Semana (Redimensionar Matriz)" << endl;
+            cout << "3. Modificar Produccion" << endl;
+            cout << "4. Calcular COGS y Final Inventory" << endl;
+            cout << "5. Salir" << endl;
+            cout << "Opcion seleccionada: ";
+            
+            if (!(cin >> choice)) {
+                cin.clear(); cin.ignore(10000, '\n');
+                cout << "Entrada invalida. Por favor, ingrese un numero." << endl;
+                choice = 0; 
+            } else {
+                cin.ignore(10000, '\n');
+            }
+
+            switch (choice) {
+                case 1:
+                    displayPlanningMatrix();
+                    break;
+                case 2:
+                    resizeMatrix();
+                    break;
+                case 3:
+                    modifyProduction();
+                    break;
+                case 4: {
+                    int week;
+                    cout << "Ingrese Semana para el calculo (0-" << currentWeeks - 1 << "): ";
+                    if (!(cin >> week) || week < 0 || week >= currentWeeks) {
+                        cin.clear(); cin.ignore(10000, '\n');
+                        cout << "Error: Entrada de semana invalida o fuera de rango." << endl;
+                    } else {
+                        calculateCOGS(week);
+                    }
+                    cin.ignore(10000, '\n');
+                    break;
+                }
+                case 5:
+                    break;
+                default:
+                    if (choice != 0) {
+                        cout << "Opcion no valida." << endl;
+                    }
+                    break;
+            }
+        } while (choice != 5);
+    }
+};
+
+int main() {
+    try {
+        ProductionSystem system;
+        system.runMenu();
+    } catch (const exception& e) {
+        cerr << "Error inesperado: " << e.what() << endl;
+        return 1;
+    } catch (...) {
+        cerr << "Error desconocido." << endl;
+        return 1;
+    }
+
+    return 0;
+}
